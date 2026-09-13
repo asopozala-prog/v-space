@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="300" viewBox="0 0 900 300">
+  <rect width="900" height="300" fill="#101018"/>
+  <!-- V: provisional vector interpretation of Piko shape grammar -->
+  <g id="V_shape" fill="none" stroke="#EEF28B" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 82 58 C 74 83,80 112,94 134 L 145 236 C 151 248,165 248,172 235 L 224 72" stroke-width="22"/>
+    <path d="M 84 60 L 62 76" stroke-width="10"/>
+    <path d="M 151 237 C 160 251,176 249,183 232" stroke-width="8"/>
+  </g>
+  <!-- Moon: literal symbol from JSON; identity is not geometrically redesigned -->
+  <text id="moon_symbol" x="250" y="190"
+        font-family="Apple Color Emoji, Apple Symbols, sans-serif"
+        font-size="138" dominant-baseline="alphabetic">
+    🌔
+  </text>
+  <!-- S: provisional vector interpretation -->
+  <path id="S_shape" d="M 470 86 C 438 57,381 63,369 100 C 356 141,397 156,433 161 C 470 166,489 185,478 216 C 464 255,401 259,365 225"
+        fill="none" stroke="#EEF28B" stroke-width="18"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- p a c e: placement follows Piko pair-spacing values -->
+  <g id="p_shape" transform="translate(500.00 145)"
+     fill="none" stroke="#EEF28B" stroke-width="11"
+     stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 0 0 L 0 122"/>
+    <path d="M 1 6 C 18 -9,48 -6,49 18 C 50 42,22 53,1 40"/>
+  </g>
+  <g id="a_shape" transform="translate(567.00 155)"
+     fill="none" stroke="#EEF28B" stroke-width="9"
+     stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 0 28 C 0 7,28 0,39 16 C 49 32,33 47,15 44 C 5 42,0 36,0 28 M 40 5 L 40 46"/>
+  </g>
+  <g id="c_shape" transform="translate(632.00 155)"
+     fill="none" stroke="#EEF28B" stroke-width="9"
+     stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 34 13 C 17 1,0 11,0 29 C 0 47,19 54,35 44"/>
+  </g>
+  <g id="e_shape" transform="translate(693.00 155)"
+     fill="none" stroke="#EEF28B" stroke-width="9"
+     stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 0 29 C 21 26,38 24,45 22 C 39 3,9 2,2 23 C -4 43,16 56,41 43"/>
+  </g>
+  <metadata>
+    reading=V🌔Space;
+    moon_symbol=🌔;
+    S_p_gap_em=0.06;
+    p_a_gap_em=0.08;
+    a_c_gap_em=0.07;
+    c_e_gap_em=0.07;
+    status=interpretive_preview_exact_geometry_not_locked
+  </metadata>
+</svg>

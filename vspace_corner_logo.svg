@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="900" height="300" viewBox="0 0 900 300"
+     id="piko_wordmark_rig">
+  <style>
+    .rig-part {
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+    .rig-vector {
+      fill: var(--rig-fill, none);
+      stroke: var(--rig-stroke, #EEF28B);
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .rig-symbol {
+      fill: var(--rig-fill, currentColor);
+      stroke: var(--rig-stroke, none);
+    }
+  </style>
+
+  <!-- Transparent canvas: intentionally no background rect. -->
+
+  <g id="V" class="rig-part" data-part="V"
+     style="--rig-stroke:#EEF28B; --rig-fill:none;">
+    <path class="rig-vector" d="M 82 58 C 74 83,80 112,94 134 L 145 236 C 151 248,165 248,172 235 L 224 72" stroke-width="22"/>
+    <path class="rig-vector" d="M 84 60 L 62 76" stroke-width="10"/>
+    <path class="rig-vector" d="M 151 237 C 160 251,176 249,183 232" stroke-width="8"/>
+  </g>
+
+  <g id="moon" class="rig-part" data-part="moon"
+     style="--rig-fill:currentColor; --rig-stroke:none; color:initial;">
+    <text class="rig-symbol" x="250" y="190"
+          font-family="Apple Color Emoji, Apple Symbols, sans-serif"
+          font-size="138" dominant-baseline="alphabetic">
+      🌔
+    </text>
+  </g>
+
+  <g id="S" class="rig-part" data-part="S"
+     style="--rig-stroke:#EEF28B; --rig-fill:none;">
+    <path class="rig-vector" d="M 470 86 C 438 57,381 63,369 100 C 356 141,397 156,433 161 C 470 166,489 185,478 216 C 464 255,401 259,365 225" stroke-width="18"/>
+  </g>
+
+  <g id="p" class="rig-part" data-part="p" transform="translate(500.00 145)"
+     style="--rig-stroke:#EEF28B; --rig-fill:none;">
+    <path class="rig-vector" d="M 0 0 L 0 122" stroke-width="11"/>
+    <path class="rig-vector" d="M 1 6 C 18 -9,48 -6,49 18 C 50 42,22 53,1 40" stroke-width="11"/>
+  </g>
+
+  <g id="a" class="rig-part" data-part="a" transform="translate(567.00 155)"
+     style="--rig-stroke:#EEF28B; --rig-fill:none;">
+    <path class="rig-vector" d="M 0 28 C 0 7,28 0,39 16 C 49 32,33 47,15 44 C 5 42,0 36,0 28 M 40 5 L 40 46" stroke-width="9"/>
+  </g>
+
+  <g id="c" class="rig-part" data-part="c" transform="translate(632.00 155)"
+     style="--rig-stroke:#EEF28B; --rig-fill:none;">
+    <path class="rig-vector" d="M 34 13 C 17 1,0 11,0 29 C 0 47,19 54,35 44" stroke-width="9"/>
+  </g>
+
+  <g id="e" class="rig-part" data-part="e" transform="translate(693.00 155)"
+     style="--rig-stroke:#EEF28B; --rig-fill:none;">
+    <path class="rig-vector" d="M 0 29 C 21 26,38 24,45 22 C 39 3,9 2,2 23 C -4 43,16 56,41 43" stroke-width="9"/>
+  </g>
+
+  <metadata>
+    reading=V🌔Space;
+    moon_symbol=🌔;
+    S_p_gap_em=0.06;
+    p_a_gap_em=0.08;
+    a_c_gap_em=0.07;
+    c_e_gap_em=0.07;
+    rig_parts=V,moon,S,p,a,c,e;
+    canvas=transparent;
+    status=programmable_rig_exact_geometry_not_locked
+  </metadata>
+
+  <!-- Moon phase motion: complete cycles, then hold on 🌔. -->
+  <script type="application/ecmascript"><![CDATA[
+    (() => {
+      const phases = ['🌕','🌖','🌗','🌘','🌑','🌒','🌓','🌔'];
+      const stepMs = 350;
+      const loops = 2;
+      const finalPhase = "🌔";
+
+      const moonGroup = document.getElementById("moon");
+      if (!moonGroup) return;
+
+      const moon =
+        document.getElementById("moon_symbol") ||
+        moonGroup.querySelector("text");
+
+      if (!moon) return;
+
+      let index = 0;
+      let completedLoops = 0;
+
+      moon.textContent = phases[0];
+
+      function advanceMoonPhase() {
+        index += 1;
+
+        if (index >= phases.length) {
+          index = 0;
+          completedLoops += 1;
+
+          if (completedLoops >= loops) {
+            moon.textContent = finalPhase;
+            return;
+          }
+        }
+
+        moon.textContent = phases[index];
+        window.setTimeout(advanceMoonPhase, stepMs);
+      }
+
+      window.setTimeout(advanceMoonPhase, stepMs);
+    })();
+  ]]></script>
+
+</svg>

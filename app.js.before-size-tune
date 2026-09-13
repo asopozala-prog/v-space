@@ -1,0 +1,460 @@
+const canvas=document.getElementById("spaceCanvas");
+const runtime=new VSpaceRuntime(canvas);
+const previewButton=document.getElementById("previewButton");
+const fullscreenButton=document.getElementById("fullscreenButton");
+const stageWrap=document.querySelector(".stage-wrap");
+const recordButton=document.getElementById("recordButton");
+const recordClock=document.getElementById("recordClock");
+const statusText=document.getElementById("statusText");
+const stageMessage=document.getElementById("stageMessage");
+const liveBadge=document.getElementById("liveBadge");
+const selectedLabel=document.getElementById("selectedLabel");
+const spaceName=document.getElementById("spaceName");
+const resultActions=document.getElementById("resultActions");
+const downloadButton=document.getElementById("downloadButton");
+const downloadWebmButton=document.getElementById("downloadWebmButton");
+const shareButton=document.getElementById("shareButton");
+const audioSource=document.getElementById("audioSource");
+const audioFileControls=document.getElementById("audioFileControls");
+const audioFileInput=document.getElementById("audioFileInput");
+const filePlayback=document.getElementById("filePlayback");
+const playPauseAudioButton=document.getElementById("playPauseAudioButton");
+const audioCurrentTime=document.getElementById("audioCurrentTime");
+const audioDuration=document.getElementById("audioDuration");
+const audioSeek=document.getElementById("audioSeek");
+const fileAudio=new Audio();
+fileAudio.preload="metadata";
+
+const labels={
+  "sand":"Sand Moon — Moon",
+  "sand-floor":"Sand Moon — Moon + Floor",
+  "network-field":"Network Constellation — Field",
+  "network-journey":"Network Constellation — Journey"
+};
+
+let selected="sand",audioCtx=null,analyser=null,micStream=null,source=null;
+let recorder=null,recordedChunks=[],recordTimer=null,recordFile=null;
+let webmURL=null,mp4URL=null,mp4File=null,mp4Job=null,exportRevision=0,mp4LoadAttempt=0;
+let fileSource=null,fileDestination=null,fileURL=null,graphMode=null;
+let sourceEpoch=0,micPending=false,filePending=false,recordingBusy=false;
+let raf=0,last=performance.now(),smooth={energy:0,bass:0,mids:0,highs:0,onset:0},prevSpectrum=null;
+
+document.querySelectorAll(".experience-card").forEach(button=>{
+  button.addEventListener("click",()=>{
+    selected=button.dataset.space;
+    document.querySelectorAll(".experience-card").forEach(x=>x.classList.toggle("selected",x===button));
+    selectedLabel.textContent=labels[selected];
+    spaceName.textContent=labels[selected].split(" — ")[0];
+    runtime.setExperience(selected);
+  });
+});
+
+function avg(data,a,b){
+  let s=0,n=0;for(let i=a;i<b&&i<data.length;i++){s+=data[i];n++}return n?s/n/255:0;
+}
+
+function readAudio(){
+  if(!analyser)return smooth;
+  const freq=new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteFrequencyData(freq);
+  const bins=freq.length;
+  const bass=avg(freq,1,Math.max(2,Math.floor(bins*.035)));
+  const mids=avg(freq,Math.floor(bins*.035),Math.floor(bins*.24));
+  const highs=avg(freq,Math.floor(bins*.24),Math.floor(bins*.72));
+  let e=0;for(const v of freq)e+=v;e=e/(freq.length*255);
+  let flux=0;
+  if(prevSpectrum){for(let i=0;i<freq.length;i++)flux+=Math.max(0,freq[i]-prevSpectrum[i]);flux/=freq.length*70}
+  prevSpectrum=freq;
+  const raw={energy:Math.min(1,e*4.8),bass:Math.min(1,bass*3.7),mids:Math.min(1,mids*3.9),highs:Math.min(1,highs*4.4),onset:Math.min(1,flux*2.4)};
+  smooth.energy=smooth.energy*.90+raw.energy*.10;
+  smooth.bass=smooth.bass*.92+raw.bass*.08;
+  smooth.mids=smooth.mids*.90+raw.mids*.10;
+  smooth.highs=smooth.highs*.82+raw.highs*.18;
+  smooth.onset=Math.max(raw.onset,smooth.onset*.72);
+  return smooth;
+}
+
+function loop(now){
+  const dt=Number.isFinite(now-last)?Math.max(0,Math.min((now-last)/1000,.05)):0;
+  last=now;
+  try{
+    runtime.setAudio(readAudio());
+    runtime.frame(dt);
+  }catch(error){
+    console.error("VSpace frame error:",error);
+  }
+  raf=requestAnimationFrame(loop);
+}
+raf=requestAnimationFrame(loop);
+
+function ensureAudioGraph(){
+  if(audioCtx)return;
+  audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  analyser=audioCtx.createAnalyser();analyser.fftSize=2048;analyser.smoothingTimeConstant=.72;
+}
+
+function resetAnalysis(){
+  prevSpectrum=null;
+  smooth={energy:0,bass:0,mids:0,highs:0,onset:0};
+}
+
+function disconnectInput(){
+  source?.disconnect();source=null;
+  fileSource?.disconnect();
+  analyser?.disconnect();
+  micStream?.getTracks().forEach(t=>t.stop());micStream=null;
+  graphMode=null;
+  resetAnalysis();
+}
+
+function connectFile(){
+  ensureAudioGraph();
+  if(graphMode==="file")return;
+  disconnectInput();
+  // Reuse one element source for the element's lifetime, including file changes.
+  if(!fileSource)fileSource=audioCtx.createMediaElementSource(fileAudio);
+  if(!fileDestination)fileDestination=audioCtx.createMediaStreamDestination();
+  fileSource.connect(analyser);
+  analyser.connect(audioCtx.destination);
+  analyser.connect(fileDestination);
+  graphMode="file";
+}
+
+function updateAudioControls(){
+  const fileMode=audioSource.value==="file";
+  const playing=fileMode&&fileURL&&!fileAudio.paused&&!fileAudio.ended;
+  audioFileControls.classList.toggle("hidden",!fileMode);
+  previewButton.classList.toggle("hidden",fileMode);
+  filePlayback.classList.toggle("hidden",!fileURL);
+  audioSource.disabled=recordingBusy;
+  audioFileInput.disabled=recordingBusy;
+  playPauseAudioButton.disabled=!fileURL||filePending;
+  playPauseAudioButton.textContent=playing?"❚❚":"▶";
+  playPauseAudioButton.setAttribute("aria-label",playing?"Pause audio":"Play audio");
+  audioSeek.disabled=!fileURL||!Number.isFinite(fileAudio.duration);
+  previewButton.textContent=micStream||micPending?"STOP LIVE PREVIEW":"START LIVE PREVIEW";
+  recordButton.disabled=recordingBusy?recorder?.state!=="recording":!(fileMode?playing:micStream);
+  liveBadge.textContent=playing||micStream?"LIVE":fileMode&&fileURL?"PAUSED":"READY";
+}
+
+async function startPreview(){
+  if(audioSource.value!=="microphone")return;
+  if(micStream||micPending)return stopPreview();
+  const epoch=++sourceEpoch;
+  let stream=null;
+  micPending=true;updateAudioControls();
+  try{
+    ensureAudioGraph();
+    await audioCtx.resume();
+    if(epoch!==sourceEpoch)return;
+    stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false},video:false});
+    if(epoch!==sourceEpoch){stream.getTracks().forEach(t=>t.stop());return;}
+    disconnectInput();
+    micStream=stream;
+    source=audioCtx.createMediaStreamSource(micStream);
+    source.connect(analyser);graphMode="microphone";
+    stageMessage.classList.add("hidden");
+    statusText.textContent="Listening through your microphone. Audio stays on this device.";
+  }catch(error){
+    stream?.getTracks().forEach(t=>t.stop());
+    if(epoch===sourceEpoch){
+      disconnectInput();
+      statusText.textContent="Microphone preview could not start. "+error.message;
+    }
+  }finally{
+    if(epoch===sourceEpoch){micPending=false;updateAudioControls();}
+  }
+}
+
+function stopPreview(){
+  if(recorder&&recorder.state==="recording")stopRecording();
+  ++sourceEpoch;micPending=false;filePending=false;
+  fileAudio.pause();
+  disconnectInput();
+  updateAudioControls();
+  statusText.textContent="Live preview stopped.";
+}
+
+async function playFile(){
+  if(audioSource.value!=="file"||!fileURL||filePending)return;
+  const epoch=++sourceEpoch;
+  filePending=true;updateAudioControls();
+  try{
+    connectFile();
+    await audioCtx.resume();
+    if(epoch!==sourceEpoch)return;
+    await fileAudio.play();
+    if(epoch!==sourceEpoch)return;
+    stageMessage.classList.add("hidden");
+    statusText.textContent="Playing your local audio file. Nothing is uploaded.";
+  }catch(error){
+    if(epoch===sourceEpoch)statusText.textContent="Audio file could not play. Choose a browser-supported audio file. "+error.message;
+  }finally{
+    if(epoch===sourceEpoch){filePending=false;updateAudioControls();}
+  }
+}
+
+function formatAudioTime(seconds){
+  if(!Number.isFinite(seconds)||seconds<0)return "0:00";
+  const total=Math.floor(seconds);
+  const minutes=Math.floor(total/60);
+  const secs=total%60;
+  return minutes+":"+String(secs).padStart(2,"0");
+}
+
+function updateAudioTimeline(){
+  const duration=Number.isFinite(fileAudio.duration)?fileAudio.duration:0;
+  const current=Number.isFinite(fileAudio.currentTime)?fileAudio.currentTime:0;
+  audioSeek.max=String(duration);
+  audioSeek.value=String(Math.min(current,duration||0));
+  audioCurrentTime.textContent=formatAudioTime(current);
+  audioDuration.textContent=formatAudioTime(duration);
+}
+
+previewButton.addEventListener("click",startPreview);
+
+playPauseAudioButton.addEventListener("click",()=>{
+  if(!fileURL||filePending)return;
+  if(!fileAudio.paused&&!fileAudio.ended){
+    ++sourceEpoch;filePending=false;
+    fileAudio.pause();
+    updateAudioControls();
+    statusText.textContent="Audio file paused.";
+  }else{
+    playFile();
+  }
+});
+
+audioSeek.addEventListener("input",()=>{
+  if(!fileURL||!Number.isFinite(fileAudio.duration))return;
+  fileAudio.currentTime=Number(audioSeek.value);
+  updateAudioTimeline();
+});
+
+for(const event of ["play","pause","ended"]){
+  fileAudio.addEventListener(event,()=>{
+    updateAudioControls();
+    updateAudioTimeline();
+  });
+}
+
+for(const event of ["loadedmetadata","durationchange","timeupdate"]){
+  fileAudio.addEventListener(event,updateAudioTimeline);
+}
+
+fileAudio.addEventListener("error",()=>{
+  if(audioSource.value!=="file"||!fileURL)return;
+  fileAudio.pause();updateAudioControls();
+  statusText.textContent="This audio file could not be loaded. Choose another audio file.";
+});
+
+audioSource.addEventListener("change",()=>{
+  stopPreview();
+  stageMessage.querySelector("span").textContent=audioSource.value==="file"?"Choose a local audio file, then press Play.":"Allow microphone access to begin.";
+  statusText.textContent=audioSource.value==="file"?"Choose a local audio file to preview. Nothing is uploaded.":"Press Start Live Preview to use your microphone.";
+});
+
+audioFileInput.addEventListener("change",()=>{
+  const file=audioFileInput.files[0];
+  if(!file||recordingBusy||audioSource.value!=="file")return;
+  ++sourceEpoch;filePending=false;
+  fileAudio.pause();
+  fileAudio.removeAttribute("src");fileAudio.load();
+  if(fileURL)URL.revokeObjectURL(fileURL);
+  fileURL=URL.createObjectURL(file);
+  fileAudio.src=fileURL;fileAudio.load();
+  updateAudioTimeline();
+  resetAnalysis();updateAudioControls();
+  statusText.textContent="Audio file ready. Press Play to preview before recording.";
+});
+updateAudioControls();
+
+fullscreenButton.addEventListener("click",async()=>{
+  try{
+    if(document.fullscreenElement){
+      await document.exitFullscreen();
+    }else{
+      await stageWrap.requestFullscreen();
+    }
+  }catch(error){
+    statusText.textContent="Fullscreen could not be opened. "+error.message;
+  }
+});
+
+document.addEventListener("fullscreenchange",()=>{
+  fullscreenButton.textContent=document.fullscreenElement?"EXIT FULL SCREEN":"FULL SCREEN";
+  runtime.resize();
+});
+
+function bestMime(){
+  const choices=["video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"];
+  return choices.find(x=>window.MediaRecorder&&MediaRecorder.isTypeSupported(x))||"";
+}
+
+// Export-only dependency: pinned, single-threaded WASM; fetched on MP4 click only.
+const FFMPEG_MODULE="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/esm";
+const FFMPEG_CORE="https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm";
+
+function recordingBasename(){
+  const slugs={sand:"sand-moon","sand-floor":"moon-floor","network-field":"network-field","network-journey":"network-journey"};
+  const date=new Date(),pad=n=>String(n).padStart(2,"0");
+  const day=[date.getFullYear(),pad(date.getMonth()+1),pad(date.getDate())].join("-");
+  const time=[pad(date.getHours()),pad(date.getMinutes()),pad(date.getSeconds())].join("-");
+  return `V_space_${slugs[selected]}_${day}_${time}`;
+}
+
+function resetExports(){
+  ++exportRevision;
+  mp4Job?.cancel();mp4Job=null;
+  if(webmURL)URL.revokeObjectURL(webmURL);
+  if(mp4URL)URL.revokeObjectURL(mp4URL);
+  webmURL=null;mp4URL=null;mp4File=null;
+  downloadWebmButton.removeAttribute("href");
+  downloadButton.disabled=false;downloadButton.textContent="DOWNLOAD MP4";
+}
+
+function downloadMP4File(){
+  const link=document.createElement("a");
+  link.href=mp4URL;link.download=mp4File.name;
+  document.body.append(link);link.click();link.remove();
+}
+
+async function exportMP4(){
+  if(!recordFile||mp4Job)return;
+  if(mp4File){downloadMP4File();return;}
+  const input=recordFile,revision=exportRevision;
+  let encoder=null,workerURL=null,timer=null,rejectDeadline,cancelled=false;
+  const deadline=new Promise((_,reject)=>{rejectDeadline=reject;});
+  const job={cancel(){cancelled=true;encoder?.terminate();rejectDeadline(new Error("Export cancelled or timed out."));}};
+  mp4Job=job;
+  downloadButton.disabled=true;downloadButton.textContent="PREPARING MP4…";
+  statusText.textContent="Loading the MP4 converter. Your clip stays in this browser; WebM is available now.";
+  const work=async()=>{
+    const {FFmpeg}=await import(FFMPEG_MODULE+"/index.js?load="+(++mp4LoadAttempt));
+    if(cancelled||revision!==exportRevision)throw new Error("Export cancelled.");
+    encoder=new FFmpeg();
+    // A local module-worker entry imports the pinned package without a build step.
+    workerURL=URL.createObjectURL(new Blob([`import "${FFMPEG_MODULE}/worker.js";`],{type:"text/javascript"}));
+    await encoder.load({classWorkerURL:workerURL,coreURL:FFMPEG_CORE+"/ffmpeg-core.js",wasmURL:FFMPEG_CORE+"/ffmpeg-core.wasm"});
+    clearTimeout(timer);
+    timer=setTimeout(()=>job.cancel(),10*60*1000);
+    if(cancelled||revision!==exportRevision)throw new Error("Export cancelled.");
+    downloadButton.textContent="CONVERTING MP4…";
+    statusText.textContent="Converting to H.264 + AAC on this device. WebM remains available.";
+    await encoder.writeFile("input.webm",new Uint8Array(await input.arrayBuffer()));
+    const result=await encoder.exec([
+      "-i","input.webm","-map","0:v:0","-map","0:a:0",
+      "-c:v","libx264","-preset","ultrafast","-crf","22",
+      "-vf","fps=30,pad=ceil(iw/2)*2:ceil(ih/2)*2","-pix_fmt","yuv420p",
+      "-c:a","aac","-b:a","192k","-movflags","+faststart","output.mp4"
+    ]);
+    if(result!==0)throw new Error("The encoder could not convert this clip.");
+    // Explicit H.264/AAC encoders above; reject an invalid MP4 container.
+    const data=await encoder.readFile("output.mp4");
+    if(data.length<12||String.fromCharCode(...data.subarray(4,8))!=="ftyp")throw new Error("Invalid MP4 container.");
+    return new File([data],input.name.replace(/\.webm$/,".mp4"),{type:"video/mp4"});
+  };
+  try{
+    timer=setTimeout(()=>job.cancel(),90000);
+    const output=await Promise.race([work(),deadline]);
+    if(revision!==exportRevision)return;
+    mp4File=output;mp4URL=URL.createObjectURL(output);
+    statusText.textContent="MP4 ready: H.264 video and AAC audio. The original WebM is also available.";
+    downloadMP4File();
+  }catch(error){
+    if(revision===exportRevision)statusText.textContent="MP4 conversion failed. Download WebM or retry MP4. "+error.message;
+  }finally{
+    clearTimeout(timer);encoder?.terminate();
+    if(workerURL)URL.revokeObjectURL(workerURL);
+    if(mp4Job===job){mp4Job=null;downloadButton.disabled=false;downloadButton.textContent="DOWNLOAD MP4";}
+  }
+}
+
+downloadButton.addEventListener("click",exportMP4);
+
+function formatClock(s){return "00:"+String(Math.max(0,s)).padStart(2,"0")}
+
+async function startRecording(){
+  const fileMode=audioSource.value==="file";
+  if(recordingBusy||!window.MediaRecorder)return;
+  if(fileMode?(!fileURL||fileAudio.paused||fileAudio.ended||graphMode!=="file"):!micStream)return;
+  resultActions.classList.add("hidden");
+  resetExports();recordFile=null;
+  let canvasStream=null;
+  try{
+    canvasStream=canvas.captureStream(30);
+    // File recording uses the clean graph output at the CURRENT playback time.
+    const audioTracks=(fileMode?fileDestination.stream:micStream).getAudioTracks();
+    const combined=new MediaStream([...canvasStream.getVideoTracks(),...audioTracks]);
+    const mime=bestMime();
+    if(!mime)throw new Error("This browser does not support WebM recording.");
+    const basename=recordingBasename();
+    recorder=new MediaRecorder(combined,mime?{mimeType:mime,videoBitsPerSecond:6000000}:undefined);
+    const activeRecorder=recorder;
+    recordedChunks=[];
+    recorder.ondataavailable=e=>{if(e.data&&e.data.size)recordedChunks.push(e.data)};
+    recorder.onstop=()=>{
+      clearInterval(recordTimer);recordTimer=null;
+      canvasStream.getTracks().forEach(t=>t.stop());
+      const type=activeRecorder.mimeType||mime||"video/webm";
+      recordFile=new File(recordedChunks,basename+".webm",{type});
+      webmURL=URL.createObjectURL(recordFile);
+      downloadWebmButton.href=webmURL;downloadWebmButton.download=recordFile.name;
+      resultActions.classList.remove("hidden");
+      recordingBusy=false;recorder=null;
+      recordButton.textContent="RECORD 1 MINUTE";recordClock.textContent="01:00";
+      updateAudioControls();
+      statusText.textContent="Your WebM clip is ready. Choose Download MP4 to convert locally, or download WebM now.";
+    };
+    recorder.onerror=()=>{
+      stopRecording();
+      statusText.textContent="Recording failed. Please try again.";
+    };
+    recorder.start(1000);recordingBusy=true;
+    recordButton.textContent="STOP RECORDING";updateAudioControls();
+    let remaining=60;recordClock.textContent=formatClock(remaining);
+    recordTimer=setInterval(()=>{
+      remaining--;recordClock.textContent=formatClock(remaining);
+      if(remaining<=0)stopRecording();
+    },1000);
+  }catch(error){
+    canvasStream?.getTracks().forEach(t=>t.stop());
+    recorder=null;recordingBusy=false;updateAudioControls();
+    statusText.textContent="Recording could not start. "+error.message;
+  }
+}
+
+function stopRecording(){
+  clearInterval(recordTimer);recordTimer=null;
+  if(recorder&&recorder.state==="recording")recorder.stop();
+  updateAudioControls();
+}
+
+recordButton.addEventListener("click",()=>{
+  if(recorder&&recorder.state==="recording")stopRecording();else startRecording();
+});
+
+shareButton.addEventListener("click",async()=>{
+  if(!recordFile)return;
+  try{
+    if(navigator.canShare&&navigator.canShare({files:[recordFile]})){
+      await navigator.share({files:[recordFile],title:"V🌔Space",text:"A one-minute V🌔Space live performance."});
+    }else{
+      statusText.textContent="Direct file sharing is not supported by this browser. Use Download Clip.";
+    }
+  }catch(error){
+    if(error.name!=="AbortError")statusText.textContent="Share was not completed. "+error.message;
+  }
+});
+
+window.addEventListener("resize",()=>runtime.resize());
+
+window.addEventListener("pagehide",()=>{
+  stopPreview();
+  fileAudio.removeAttribute("src");fileAudio.load();
+  if(fileURL)URL.revokeObjectURL(fileURL);
+  fileURL=null;
+  resetExports();
+  fileDestination?.stream.getTracks().forEach(t=>t.stop());
+  audioCtx?.close();
+});
