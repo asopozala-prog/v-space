@@ -145,11 +145,12 @@
 
       <section class="instrument">
         <div class="stage-wrap">
-          <canvas id="spaceCanvas" width="900" height="900" aria-label="V Space live preview"></canvas>
+          <canvas id="spaceCanvas" width="900" height="900" aria-label="V Space live stream"></canvas>
           <div id="stageMessage" class="stage-message">
             <strong id="spaceName">Sand Moon</strong>
             <span>Allow microphone access to begin.</span>
           </div>
+          <button id="fullscreenButton" class="stage-fullscreen" type="button">FULL SCREEN</button>
           <div class="live-badge" id="liveBadge">READY</div>
         </div>
 
@@ -160,7 +161,7 @@
           </div>
 
           <div class="audio-source">
-            <label for="audioSource">LIVE PREVIEW AUDIO</label>
+            <label for="audioSource">LIVE STREAM AUDIO</label>
             <select id="audioSource">
               <option value="microphone">LIVE / PLAYING AUDIO</option>
               <option value="file">AUDIO FILE</option>
@@ -180,8 +181,7 @@
             </div>
           </div>
 
-          <button id="previewButton" class="primary">START LIVE PREVIEW</button>
-          <button id="fullscreenButton">FULL SCREEN</button>
+          <button id="previewButton" class="primary">START LIVE STREAM</button>
 
           <div class="record-row">
             <button id="recordButton" disabled>RECORD 1 MINUTE</button>
@@ -266,6 +266,36 @@
     </div>
   </div>
 </section>
+
+    <section id="origin" class="origin-section">
+      <div class="origin-copy">
+        <p class="eyebrow">ORIGIN</p>
+
+        <h2>IN DANCE, I HOST MUSIC IN MY BODY.</h2>
+
+        <p class="origin-statement">
+          Now I create spaces where your music brings them to life.
+        </p>
+
+        <p class="origin-vspace">
+          <strong>V🌔Space turns sound into a space you can perform inside.</strong>
+        </p>
+
+        <p class="origin-credit">by Developer</p>
+      </div>
+
+      <div class="origin-film">
+        <iframe
+          src="https://www.youtube-nocookie.com/embed/PKPSrkOS5Go?si=RZa2S6bv2rFKWVk9"
+          title="Developer — dance and V Space"
+          loading="lazy"
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          referrerpolicy="strict-origin-when-cross-origin"
+          allowfullscreen>
+        </iframe>
+      </div>
+    </section>
   </main>
 
   <footer>
@@ -273,6 +303,7 @@
     <span>Mushroom House 🍄 AI Studio</span>
   </footer>
 
+  <script src="./site-sound.js"></script>
   <script src="./hero-animation.js"></script>
   <script src="./vspace-runtime.js"></script>
   <script src="./app.js"></script>

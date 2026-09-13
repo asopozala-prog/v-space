@@ -9,7 +9,7 @@ Browser-only public product foundation.
   - Sand Moon — Moon + Floor
   - Network Constellation — Field
   - Network Constellation — Journey
-- Live microphone preview is the primary interaction.
+- Live streaming is the primary interaction.
 - Optional one-minute browser recording.
 - No cloud renderer, Python runtime, upload API, FFmpeg, or local V🌔Space paths are required by the deployed page.
 

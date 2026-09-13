@@ -424,3 +424,119 @@ p{
     width:min(82vw,360px);
   }
 }
+
+
+/* Fullscreen is a stream-frame utility, not a primary action */
+.stage-fullscreen{
+  position:absolute;
+  top:16px;
+  right:16px;
+  z-index:6;
+  width:auto;
+  margin:0;
+  padding:8px 10px;
+  border:1px solid #2a2a2a;
+  background:#090909cc;
+  color:#b8b2a8;
+  font:inherit;
+  font-size:9px;
+  letter-spacing:.14em;
+  cursor:pointer;
+}
+
+.stage-fullscreen:hover{
+  color:#FFFFFF;
+  border-color:#66615a;
+}
+
+/* Leave room for both utility controls in the upper-right. */
+.live-badge{
+  top:52px;
+}
+
+/* Stream-frame utility positions */
+#fullscreenButton.stage-fullscreen{
+  position:absolute;
+  top:16px;
+  right:16px;
+  left:auto;
+  z-index:20;
+  width:auto;
+  min-width:118px;
+  margin:0;
+  padding:10px 14px;
+  border:1px solid #5b554b;
+  background:#090909e8;
+  color:#FFFFFF;
+  font-family:"Andale Mono",monospace;
+  font-size:10px;
+  letter-spacing:.14em;
+  line-height:1;
+}
+
+.stage-wrap .live-badge{
+  top:16px;
+  left:16px;
+  right:auto;
+  z-index:10;
+}
+
+
+/* Connect the artist's dance practice to the origin of V Space. */
+.origin-section{
+  display:grid;
+  grid-template-columns:minmax(280px,.8fr) minmax(420px,1.2fr);
+  gap:clamp(48px,7vw,110px);
+  align-items:center;
+  padding:clamp(80px,10vw,150px) 0;
+}
+
+.origin-copy{
+  max-width:560px;
+}
+
+.origin-copy h2{
+  margin:18px 0 34px;
+  font-size:clamp(28px,3.4vw,52px);
+  line-height:1.08;
+}
+
+.origin-statement{
+  font-size:clamp(15px,1.4vw,19px);
+  line-height:1.7;
+  margin-bottom:32px;
+}
+
+.origin-vspace{
+  line-height:1.7;
+  margin-bottom:24px;
+}
+
+.origin-credit{
+  font-size:10px;
+  letter-spacing:.14em;
+  color:#999;
+}
+
+.origin-film{
+  width:100%;
+}
+
+.origin-film iframe{
+  display:block;
+  width:100%;
+  aspect-ratio:16 / 9;
+  border:0;
+  background:#000;
+}
+
+@media(max-width:820px){
+  .origin-section{
+    grid-template-columns:1fr;
+    gap:40px;
+  }
+
+  .origin-film{
+    order:2;
+  }
+}

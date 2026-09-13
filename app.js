@@ -132,7 +132,7 @@ function updateAudioControls(){
   playPauseAudioButton.textContent=playing?"❚❚":"▶";
   playPauseAudioButton.setAttribute("aria-label",playing?"Pause audio":"Play audio");
   audioSeek.disabled=!fileURL||!Number.isFinite(fileAudio.duration);
-  previewButton.textContent=micStream||micPending?"STOP LIVE PREVIEW":"START LIVE PREVIEW";
+  previewButton.textContent=micStream||micPending?"STOP LIVE STREAM":"START LIVE STREAM";
   recordButton.disabled=recordingBusy?recorder?.state!=="recording":!(fileMode?playing:micStream);
   liveBadge.textContent=playing||micStream?"LIVE":fileMode&&fileURL?"PAUSED":"READY";
 }
@@ -159,7 +159,7 @@ async function startPreview(){
     stream?.getTracks().forEach(t=>t.stop());
     if(epoch===sourceEpoch){
       disconnectInput();
-      statusText.textContent="Microphone preview could not start. "+error.message;
+      statusText.textContent="Live stream could not start. "+error.message;
     }
   }finally{
     if(epoch===sourceEpoch){micPending=false;updateAudioControls();}
@@ -172,7 +172,7 @@ function stopPreview(){
   fileAudio.pause();
   disconnectInput();
   updateAudioControls();
-  statusText.textContent="Live preview stopped.";
+  statusText.textContent="Live stream stopped.";
 }
 
 async function playFile(){
@@ -251,7 +251,7 @@ fileAudio.addEventListener("error",()=>{
 audioSource.addEventListener("change",()=>{
   stopPreview();
   stageMessage.querySelector("span").textContent=audioSource.value==="file"?"Choose a local audio file, then press Play.":"Allow microphone access to begin.";
-  statusText.textContent=audioSource.value==="file"?"Choose a local audio file to preview. Nothing is uploaded.":"Press Start Live Preview to use your microphone.";
+  statusText.textContent=audioSource.value==="file"?"Choose a local audio file for the live stream. Nothing is uploaded.":"Press Start Live Stream to use your microphone.";
 });
 
 audioFileInput.addEventListener("change",()=>{
@@ -265,7 +265,7 @@ audioFileInput.addEventListener("change",()=>{
   fileAudio.src=fileURL;fileAudio.load();
   updateAudioTimeline();
   resetAnalysis();updateAudioControls();
-  statusText.textContent="Audio file ready. Press Play to preview before recording.";
+  statusText.textContent="Audio file ready. Press Play to start the live stream before recording.";
 });
 updateAudioControls();
 

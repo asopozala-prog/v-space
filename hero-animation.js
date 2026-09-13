@@ -138,6 +138,8 @@
   }
 
   function play(){
+    window.VSpaceSound?.playHero();
+
     ++generation;
     const run=generation;
 
