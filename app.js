@@ -269,20 +269,53 @@ audioFileInput.addEventListener("change",()=>{
 });
 updateAudioControls();
 
+function pseudoFullscreenActive(){
+  return stageWrap.classList.contains("stage-wrap--pseudo-fullscreen");
+}
+
+function enterPseudoFullscreen(){
+  stageWrap.classList.add("stage-wrap--pseudo-fullscreen");
+  document.body.classList.add("vspace-pseudo-fullscreen");
+  fullscreenButton.textContent="EXIT FULL SCREEN";
+  requestAnimationFrame(()=>runtime.resize());
+}
+
+function exitPseudoFullscreen(){
+  stageWrap.classList.remove("stage-wrap--pseudo-fullscreen");
+  document.body.classList.remove("vspace-pseudo-fullscreen");
+  fullscreenButton.textContent="FULL SCREEN";
+  requestAnimationFrame(()=>runtime.resize());
+}
+
 fullscreenButton.addEventListener("click",async()=>{
+  if(pseudoFullscreenActive()){
+    exitPseudoFullscreen();
+    return;
+  }
+
+  if(document.fullscreenElement){
+    await document.exitFullscreen();
+    return;
+  }
+
+  if(typeof stageWrap.requestFullscreen!=="function"){
+    enterPseudoFullscreen();
+    return;
+  }
+
   try{
-    if(document.fullscreenElement){
-      await document.exitFullscreen();
-    }else{
-      await stageWrap.requestFullscreen();
-    }
+    await stageWrap.requestFullscreen();
   }catch(error){
-    statusText.textContent="Fullscreen could not be opened. "+error.message;
+    // Mobile browsers may reject element fullscreen even when the API exists.
+    enterPseudoFullscreen();
   }
 });
 
 document.addEventListener("fullscreenchange",()=>{
-  fullscreenButton.textContent=document.fullscreenElement?"EXIT FULL SCREEN":"FULL SCREEN";
+  fullscreenButton.textContent=
+    (document.fullscreenElement||pseudoFullscreenActive())
+      ?"EXIT FULL SCREEN"
+      :"FULL SCREEN";
   runtime.resize();
 });
 
