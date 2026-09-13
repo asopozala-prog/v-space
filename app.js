@@ -293,6 +293,13 @@ fullscreenButton.addEventListener("click",async()=>{
     return;
   }
 
+  const mobileLike = window.matchMedia("(pointer: coarse)").matches;
+
+  if(mobileLike){
+    enterPseudoFullscreen();
+    return;
+  }
+
   if(document.fullscreenElement){
     await document.exitFullscreen();
     return;
@@ -306,7 +313,6 @@ fullscreenButton.addEventListener("click",async()=>{
   try{
     await stageWrap.requestFullscreen();
   }catch(error){
-    // Mobile browsers may reject element fullscreen even when the API exists.
     enterPseudoFullscreen();
   }
 });
